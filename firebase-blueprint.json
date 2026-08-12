@@ -1,0 +1,121 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile document containing authentication and profile info",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 30, "pattern": "^[a-z0-9_]{3,30}$" },
+        "displayName": { "type": "string", "maxLength": 60 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "about": { "type": "string", "maxLength": 200 },
+        "phoneNumber": { "type": "string", "maxLength": 25 },
+        "email": { "type": "string", "maxLength": 100 },
+        "createdAt": { "type": "string" },
+        "lastSeen": { "type": "string" },
+        "online": { "type": "boolean" }
+      },
+      "required": ["uid", "username", "displayName"]
+    },
+    "Username": {
+      "title": "Username Reservation",
+      "description": "Global unique username reservation map",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "username": { "type": "string", "maxLength": 30, "pattern": "^[a-z0-9_]{3,30}$" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "username"]
+    },
+    "Chat": {
+      "title": "Chat Conversation",
+      "description": "Metadata for individual or group conversation",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string", "maxLength": 128 },
+        "type": { "type": "string", "enum": ["individual", "group"] },
+        "name": { "type": "string", "maxLength": 100 },
+        "photoURL": { "type": "string", "maxLength": 1000 },
+        "description": { "type": "string", "maxLength": 500 },
+        "members": { "type": "array" },
+        "adminUids": { "type": "array" },
+        "lastMessageText": { "type": "string", "maxLength": 2000 },
+        "lastMessageSenderName": { "type": "string", "maxLength": 100 },
+        "lastMessageTimestamp": { "type": "string" },
+        "updatedAt": { "type": "string" },
+        "createdBy": { "type": "string", "maxLength": 128 }
+      },
+      "required": ["chatId", "type", "members"]
+    },
+    "ChatMessage": {
+      "title": "Chat Message",
+      "description": "Message item in a chat conversation",
+      "type": "object",
+      "properties": {
+        "messageId": { "type": "string", "maxLength": 128 },
+        "chatId": { "type": "string", "maxLength": 128 },
+        "senderId": { "type": "string", "maxLength": 128 },
+        "senderName": { "type": "string", "maxLength": 100 },
+        "type": { "type": "string", "enum": ["text", "image", "video", "audio", "document", "contact", "location", "event"] },
+        "text": { "type": "string", "maxLength": 4000 },
+        "mediaUrl": { "type": "string", "maxLength": 1000 },
+        "mediaName": { "type": "string", "maxLength": 200 },
+        "mediaType": { "type": "string", "maxLength": 100 },
+        "mediaSize": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["sending", "sent", "delivered", "read"] },
+        "isDeletedForEveryone": { "type": "boolean" },
+        "isEdited": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["messageId", "chatId", "senderId", "type"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles collection"
+    },
+    "/usernames/{username}": {
+      "schema": "Username",
+      "description": "Reserved usernames mapping"
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Chat conversations collection"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "ChatMessage",
+      "description": "Messages inside a chat subcollection"
+    },
+    "/users/{userId}/contacts/{contactUid}": {
+      "schema": "Contact",
+      "description": "User saved contacts subcollection"
+    },
+    "/users/{userId}/blocked/{blockedUid}": {
+      "schema": "BlockedUser",
+      "description": "User blocked contacts subcollection"
+    },
+    "/users/{userId}/devices/{deviceId}": {
+      "schema": "LinkedDevice",
+      "description": "User linked device sessions subcollection"
+    },
+    "/users/{userId}/securityEvents/{eventId}": {
+      "schema": "SecurityEvent",
+      "description": "User security activity log subcollection"
+    },
+    "/pairingSessions/{sessionId}": {
+      "schema": "PairingSession",
+      "description": "Short lived device pairing sessions"
+    },
+    "/channels/{channelId}": {
+      "schema": "Channel",
+      "description": "Public and private broadcast channels"
+    },
+    "/channels/{channelId}/posts/{postId}": {
+      "schema": "ChannelPost",
+      "description": "Posts in a channel subcollection"
+    }
+  }
+}
