@@ -38,7 +38,11 @@ export type ScreenType =
   | 'security_activity'
   | 'find_people'
   | 'wallpaper'
-  | 'stickers';
+  | 'stickers'
+  | 'permissions'
+  | 'camera_test'
+  | 'mic_test'
+  | 'notification_debug';
 
 export type MainTabType = 'chats' | 'updates' | 'communities' | 'calls';
 

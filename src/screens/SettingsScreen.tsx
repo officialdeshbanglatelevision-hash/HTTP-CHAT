@@ -113,9 +113,17 @@ export const SettingsScreen: React.FC<SettingsScreenProps> = ({ onOpenLanguageMo
           id: 'notifications',
           icon: Bell,
           label: 'Notifications',
-          desc: 'Message, group & call tones',
+          desc: 'Message, group & call tones & FCM push',
           action: () => navigateTo('notifications'),
           iconBg: 'bg-amber-500/10 text-amber-500',
+        },
+        {
+          id: 'permissions',
+          icon: Shield,
+          label: 'Permissions & Hardware',
+          desc: 'Camera, microphone & notification access states',
+          action: () => navigateTo('permissions'),
+          iconBg: 'bg-emerald-500/10 text-emerald-500',
         },
         {
           id: 'storage',

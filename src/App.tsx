@@ -59,6 +59,10 @@ import { SecurityActivityScreen } from './screens/SecurityActivityScreen';
 import { FindPeopleScreen } from './screens/FindPeopleScreen';
 import { WallpaperScreen } from './screens/WallpaperScreen';
 import { StickersScreen } from './screens/StickersScreen';
+import { PermissionsScreen } from './screens/PermissionsScreen';
+import { CameraTestScreen } from './screens/CameraTestScreen';
+import { MicTestScreen } from './screens/MicTestScreen';
+import { NotificationDebugScreen } from './screens/NotificationDebugScreen';
 
 const MainAppContent: React.FC = () => {
   const { activeScreen } = useTheme();
@@ -237,6 +241,14 @@ const MainAppContent: React.FC = () => {
         return <WallpaperScreen />;
       case 'stickers':
         return <StickersScreen />;
+      case 'permissions':
+        return <PermissionsScreen />;
+      case 'camera_test':
+        return <CameraTestScreen />;
+      case 'mic_test':
+        return <MicTestScreen />;
+      case 'notification_debug':
+        return <NotificationDebugScreen />;
       default:
         return <ChatsScreen onOpenNewGroupModal={() => setNewGroupOpen(true)} />;
     }

@@ -1,6 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useTheme } from '../context/ThemeContext';
 import { useChat } from '../context/ChatContext';
+import { useAuth } from '../context/AuthContext';
+import { doc, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 import {
   User,
   Phone,
@@ -25,12 +28,19 @@ import { ConfirmationModal, ConfirmationType } from '../components/modals/Confir
 export const ChatInfoScreen: React.FC = () => {
   const { navigateTo, showToast, goBack } = useTheme();
   const { activeChatId, chats, activeChatMessages } = useChat();
+  const { currentUser } = useAuth();
 
+  const activeChat = chats.find((c) => (c as any).chatId === activeChatId || c.id === activeChatId) || chats[0];
   const [muted, setMuted] = useState(false);
   const [confirmModalType, setConfirmModalType] = useState<ConfirmationType | null>(null);
   const [mediaTab, setMediaTab] = useState<'media' | 'links' | 'docs' | 'audio'>('media');
 
-  const activeChat = chats.find((c) => c.id === activeChatId) || chats[0];
+  useEffect(() => {
+    if (activeChat && currentUser) {
+      const isMuted = activeChat.mutedBy?.includes(currentUser.uid) || false;
+      setMuted(isMuted);
+    }
+  }, [activeChat, currentUser]);
 
   // Extract real media files from Firestore messages
   const chatMedia = useMemo(() => {
@@ -315,9 +325,20 @@ export const ChatInfoScreen: React.FC = () => {
           <input
             type="checkbox"
             checked={muted}
-            onChange={() => {
-              setMuted(!muted);
-              showToast(!muted ? 'Chat notifications muted' : 'Chat notifications unmuted');
+            onChange={async () => {
+              const newMuted = !muted;
+              setMuted(newMuted);
+              if (currentUser && activeChat) {
+                try {
+                  const chatRef = doc(db, 'chats', (activeChat as any).chatId || activeChat.id || activeChatId!);
+                  await updateDoc(chatRef, {
+                    mutedBy: newMuted ? arrayUnion(currentUser.uid) : arrayRemove(currentUser.uid),
+                  });
+                } catch (e) {
+                  console.error('Failed to update chat mute status:', e);
+                }
+              }
+              showToast(newMuted ? 'Chat notifications muted' : 'Chat notifications unmuted');
             }}
             className="w-4 h-4 accent-emerald-600 rounded cursor-pointer"
           />

@@ -22,6 +22,8 @@ import {
 } from 'firebase/firestore';
 import { auth, db, googleAuthProvider, testFirestoreConnection, OperationType, handleFirestoreError } from '../lib/firebase';
 import { UserProfile } from '../types/chat';
+import { notificationManager } from '../utils/notificationManager';
+import { removeFCMTokenOnLogout } from '../services/fcmService';
 
 interface AuthContextType {
   currentUser: User | null;
@@ -104,6 +106,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e) {
           // Ignore if user doc not yet created
         }
+
+        // Initialize FCM push notifications
+        notificationManager.initializeForUser(user.uid).catch(() => {});
       } else {
         if (profileUnsub) profileUnsub();
         setUserProfile(null);
@@ -241,12 +246,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const logout = async () => {
     if (currentUser) {
       try {
+        await notificationManager.cleanupForLogout();
         await updateDoc(doc(db, 'users', currentUser.uid), {
           online: false,
           lastSeen: new Date().toISOString(),
         });
       } catch (e) {
-        console.warn('Presence offline update error on logout', e);
+        console.warn('Logout cleanup error', e);
       }
     }
     await signOut(auth);

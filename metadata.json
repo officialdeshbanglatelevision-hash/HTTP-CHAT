@@ -1,6 +1,6 @@
 {
   "name": "HTTP CHAT",
   "description": "HTTP CHAT — A complete real-time mobile chat application powered by Firebase Auth, Firestore, and Storage.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

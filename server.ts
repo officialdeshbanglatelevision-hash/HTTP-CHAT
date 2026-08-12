@@ -3,6 +3,17 @@ import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { v2 as cloudinary } from 'cloudinary';
 import { GoogleGenAI, Modality } from '@google/genai';
+import admin from 'firebase-admin';
+
+if (!(admin as any).apps?.length) {
+  try {
+    admin.initializeApp({
+      projectId: 'http-chat-c63f5',
+    });
+  } catch (e) {
+    console.warn('Firebase Admin init warning:', e);
+  }
+}
 
 // Configure Cloudinary from environment variables
 const cloudName = process.env.CLOUDINARY_CLOUD_NAME || process.env.VITE_CLOUDINARY_CLOUD_NAME || 'demo';
@@ -146,20 +157,41 @@ async function startServer() {
         parts: userParts,
       });
 
-      const response = await ai.models.generateContent({
-        model: 'gemini-3.6-flash',
-        contents,
-        config: {
-          systemInstruction: defaultSystemInstruction,
-        },
-      });
+      let response;
+      try {
+        response = await ai.models.generateContent({
+          model: 'gemini-3.6-flash',
+          contents,
+          config: {
+            systemInstruction: defaultSystemInstruction,
+          },
+        });
+      } catch (geminiError: any) {
+        // Fallback to gemini-2.5-flash if 3.6-flash exceeds quota/rate limit
+        if (geminiError?.message?.includes('resource_exhausted') || geminiError?.status === 429) {
+          console.warn('Gemini 3.6 Flash rate limited. Attempting fallback model gemini-2.5-flash...');
+          response = await ai.models.generateContent({
+            model: 'gemini-2.5-flash',
+            contents,
+            config: {
+              systemInstruction: defaultSystemInstruction,
+            },
+          });
+        } else {
+          throw geminiError;
+        }
+      }
 
       res.json({
         reply: response.text || "I'm sorry, I couldn't generate a response.",
       });
     } catch (error: any) {
       console.error('ACP AI Gemini Error:', error);
-      res.status(500).json({ error: error.message || 'Failed to process ACP AI request' });
+      const isQuota = error?.message?.includes('resource_exhausted') || error?.status === 429;
+      const userMessage = isQuota
+        ? 'ACP AI is currently under high demand (API quota/rate limit reached). Please wait a moment and try again.'
+        : error.message || 'Failed to process ACP AI request';
+      res.status(500).json({ error: userMessage });
     }
   });
 
@@ -204,6 +236,93 @@ async function startServer() {
     } catch (error: any) {
       console.error('ACP AI TTS Error:', error);
       res.status(500).json({ error: error.message || 'TTS synthesis failed' });
+    }
+  });
+
+  // API Route: Test FCM Push Notification (End-to-End Verification)
+  app.post('/api/notifications/test', async (req, res) => {
+    try {
+      const { uid, token, chatId } = req.body;
+      if (!uid || !token) {
+        return res.status(400).json({ success: false, failurePoint: 'token_registration', error: 'uid and token are required' });
+      }
+
+      const db = (admin as any).firestore();
+      
+      // 1. Check user notification preferences
+      let prefs: any = null;
+      try {
+        const prefSnap = await db.doc(`users/${uid}/settings/notifications`).get();
+        if (prefSnap.exists) {
+          prefs = prefSnap.data();
+        }
+      } catch (e) {
+        console.warn('Could not fetch preferences for test:', e);
+      }
+
+      // 2. Check chat mute status if chatId provided
+      let isMuted = false;
+      if (chatId) {
+        try {
+          const chatSnap = await db.doc(`chats/${chatId}`).get();
+          if (chatSnap.exists) {
+            const chatData = chatSnap.data();
+            if (chatData?.mutedBy && Array.isArray(chatData.mutedBy) && chatData.mutedBy.includes(uid)) {
+              isMuted = true;
+            }
+          }
+        } catch (e) {
+          console.warn('Could not fetch chat mute status for test:', e);
+        }
+      }
+
+      if (isMuted) {
+        return res.json({
+          success: false,
+          failurePoint: 'backend_trigger',
+          reason: 'Chat is muted by user. Notification suppressed per mute preferences.',
+        });
+      }
+
+      // 3. Attempt FCM send
+      let messageBody = 'This is a verified test push notification from HTTP CHAT.';
+      if (prefs && prefs.messagePreview === false) {
+        messageBody = 'New message';
+      }
+
+      const message = {
+        token,
+        notification: {
+          title: 'HTTP CHAT Test Push',
+          body: messageBody,
+        },
+        data: {
+          type: 'TEST_PUSH',
+          recipientUid: uid,
+          url: chatId ? `/chat/${chatId}` : '/',
+        },
+      };
+
+      try {
+        const responseId = await (admin as any).messaging().send(message);
+        return res.json({
+          success: true,
+          messageId: responseId,
+          preferencesChecked: prefs || { default: 'all enabled' },
+          chatMuted: isMuted,
+        });
+      } catch (fcmError: any) {
+        console.error('FCM Send Error:', fcmError);
+        return res.status(500).json({
+          success: false,
+          failurePoint: 'fcm_send',
+          error: fcmError.message || 'Failed to send FCM push notification',
+          code: fcmError.code,
+        });
+      }
+    } catch (error: any) {
+      console.error('Notification Test API Error:', error);
+      res.status(500).json({ success: false, failurePoint: 'backend_trigger', error: error.message });
     }
   });
 
